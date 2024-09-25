@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/BulizhnikGames/musicbot/Interations"
+	"github.com/BulizhnikGames/musicbot/Youtube"
 	"github.com/bwmarrin/discordgo"
 	"github.com/joho/godotenv"
 	"log"
@@ -25,6 +26,8 @@ func main() {
 	if AppID == "" {
 		log.Fatal("AppID not found")
 	}
+
+	serv := Youtube.NewService()
 
 	session, err := discordgo.New("Bot " + BotToken)
 	if err != nil {
@@ -51,13 +54,13 @@ func main() {
 		log.Fatalf("Error initializing application's slash commands: %s", err)
 	}
 
-	CommandHandlers := map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+	CommandHandlers := map[string]func(serv *Youtube.Service, s *discordgo.Session, i *discordgo.InteractionCreate){
 		"play": Interations.Play,
 	}
 
 	session.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if handler, ok := CommandHandlers[i.ApplicationCommandData().Name]; ok {
-			handler(s, i)
+			handler(serv, s, i)
 		}
 	})
 

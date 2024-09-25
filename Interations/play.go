@@ -2,15 +2,13 @@ package Interations
 
 import (
 	"errors"
-	"fmt"
+	"github.com/BulizhnikGames/musicbot/Youtube"
 	"github.com/bwmarrin/discordgo"
-	"github.com/lithdew/youtube"
 	"log"
 	"strings"
-	"time"
 )
 
-func Play(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+func Play(s *Youtube.Service, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 	switch interaction.Type {
 	case discordgo.InteractionApplicationCommand:
 		data := interaction.ApplicationCommandData()
@@ -38,16 +36,30 @@ func Play(session *discordgo.Session, interaction *discordgo.InteractionCreate) 
 				Value: input,
 			})
 		} else {
-			names, _, err := getVideos(input, 5, 13*time.Minute)
+			results, err := getVideos(s, input, 5)
 			if err != nil {
 				log.Printf("Error getting YT videos by with name %s: %s \n", input, err)
 				return
 			}
-			log.Printf("Got %v names from search", len(*names))
-			for _, name := range *names {
+			//log.Printf("Got %v names from search", len(*results))
+			if len(*results) == 0 {
+				return
+			}
+			for _, result := range *results {
+				lists := strings.Split(result, " ")
+				name := ""
+				for i, part := range lists {
+					if i == 0 {
+						continue
+					}
+					name += part
+					if i != len(lists)-1 {
+						name += " "
+					}
+				}
 				choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
 					Name:  name,
-					Value: name,
+					Value: lists[0],
 				})
 			}
 		}
@@ -65,65 +77,11 @@ func Play(session *discordgo.Session, interaction *discordgo.InteractionCreate) 
 	}
 }
 
-func getVideos(input string, amountLimit int, durationLimit time.Duration) (*[]string, *[]youtube.StreamID, error) {
-	test()
-
+func getVideos(s *Youtube.Service, input string, amountLimit int) (*[]string, error) {
 	if input == "" {
-		return nil, nil, errors.New("input is empty")
-	}
-	results, err := youtube.Search("animus vox", 0)
-	if err != nil {
-		return nil, nil, err
+		return nil, errors.New("input is empty")
 	}
 
-	log.Printf("Got %v search results \n", results.Hits)
-
-	names := make([]string, 0)
-	ids := make([]youtube.StreamID, 0)
-
-	cnt := 0
-	for _, result := range results.Items {
-		if cnt >= amountLimit {
-			break
-		}
-		if result.LengthSeconds <= durationLimit {
-			names = append(names, result.Title)
-			ids = append(ids, result.ID)
-			cnt++
-		}
-	}
-
-	return &names, &ids, nil
-}
-
-func check(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func test() {
-	results, err := youtube.Search("animus vox", 0)
-	check(err)
-
-	fmt.Printf("Got %d search result(s).\n\n", results.Hits)
-
-	if len(results.Items) == 0 {
-		check(fmt.Errorf("got zero search results"))
-	}
-
-	// Get the first search result and print out its details.
-
-	details := results.Items[0]
-
-	fmt.Printf(
-		"ID: %q\n\nTitle: %q\nAuthor: %q\nDuration: %q\n\nView Count: %q\nLikes: %d\nDislikes: %d\n\n",
-		details.ID,
-		details.Title,
-		details.Author,
-		details.Duration,
-		details.Views,
-		details.Likes,
-		details.Dislikes,
-	)
+	names, err := s.Search(input, amountLimit)
+	return names, err
 }
